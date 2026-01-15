@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "表态 BiaoTai - AI手表鉴定专家",
+  title: "表态 ctime - AI手表鉴定专家",
   description: "犀利点评，精准估价，让您的手表「表态」",
   icons: {
     icon: [
@@ -28,17 +28,17 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: '表态 BiaoTai'
+    title: '表态 ctime'
   },
   openGraph: {
-    title: '表态 BiaoTai - AI手表鉴定专家',
+    title: '表态 ctime - AI手表鉴定专家',
     description: '犀利点评，精准估价，让您的手表「表态」',
     images: ['/logo.png'],
     type: 'website'
   },
   twitter: {
     card: 'summary_large_image',
-    title: '表态 BiaoTai - AI手表鉴定专家',
+    title: '表态 ctime - AI手表鉴定专家',
     description: '犀利点评，精准估价，让您的手表「表态」',
     images: ['/logo.png']
   },

@@ -1,3 +1,4 @@
+import { queryWatchPrice } from './watch-price-helper';
 
 export const maxDuration = 60;
 
@@ -68,12 +69,19 @@ export async function POST(req: Request) {
    - 示例：Rolex 劳力士 Submariner 潜航者 116610LN  
    - 示例：Cartier 卡地亚 Tank 坦克 Solo WSTA0028
    - 如无法识别系列，至少保证品牌双语：Brand 品牌 Unknown Series 未知系列
-2. **价格精准度（核心要求）**：
-   - 必须给出具体的人民币价格区间（如：¥50,000 - ¥80,000）
-   - 价格要基于2024-2025年的二级市场行情
-   - 对于热门款（如劳力士、百达翡丽），考虑溢价因素
-   - 对于古董表或限量款，注明"视成色而定"或"拍卖价可达..."
-   - 价格区间不要过大，尽量控制在20%-30%以内
+2. **价格精准度（最高优先级要求）**：
+   - **基于中国市场2024-2025年实际成交价**：
+     * 价格必须是人民币（¥），格式：¥50,000 - ¥80,000
+     * 参考中国二级市场真实成交价（闲鱼、转转、watch.xbiao.com等）
+     * 注意：是二级市场价，不是专柜公价
+   - **参考价格示例（仅供参考，不是硬性规则）**：
+     * 劳力士绿水鬼 116610LV：约 ¥110,000 - ¥130,000
+     * 劳力士黑水鬼 116610LN：约 ¥80,000 - ¥95,000
+     * 欧米茄海马300米：约 ¥28,000 - ¥35,000
+     * 百达翡丽鹦鹉螺5711/1A：约 ¥800,000 - ¥1,200,000
+     * 卡地亚蓝气球中号：约 ¥25,000 - ¥35,000
+   - 根据你的知识库和这些参考价，灵活估算相似款式的价格
+   - 价格区间尽量合理，一般不超过30%
 3. **多表关联**：如果用户上传了多张图，请将它们视为一组进行识别，并分配递增的 ID (1, 2, 3...)。
 4. **对比分析**：在 comparison 对象中，必须指出哪一块"最贵"（most_expensive_id），哪一块"最超值/性价比最高"（best_value_id）。如果是单块表，这两个 ID 都是它自己。
 5. **识别标准（重中之重）**：
@@ -156,13 +164,16 @@ export async function POST(req: Request) {
 
             // CRITICAL FIX: Force all watches to have is_watch = true
             // This prevents false negatives from AI misidentification
+
+            // Note: thewatchapi.com disabled due to international pricing (not China market)
+            // Relying fully on Gemini's China market knowledge
             parsedData.watches = parsedData.watches.map((watch: any) => ({
                 ...watch,
                 is_watch: true // Always treat uploaded images as watches
             }));
 
             const fixedContent = JSON.stringify(parsedData);
-            console.log("Fixed Response (is_watch forced to true):", fixedContent);
+            console.log("Fixed Response (China market prices):", fixedContent);
 
             return Response.json({ content: fixedContent });
         } catch (e) {
