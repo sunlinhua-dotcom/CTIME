@@ -1,4 +1,5 @@
-import { queryWatchPrice } from './watch-price-helper';
+// Note: thewatchapi.com integration disabled - using Gemini's China market knowledge instead
+// import { queryWatchPrice } from './watch-price-helper';
 
 export const maxDuration = 60;
 

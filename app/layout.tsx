@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://ctime.zeabur.app'),
   title: "表态 ctime - AI手表鉴定专家",
   description: "犀利点评，精准估价，让您的手表「表态」",
   icons: {
