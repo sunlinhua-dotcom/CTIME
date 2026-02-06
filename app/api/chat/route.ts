@@ -1,5 +1,5 @@
-// Note: thewatchapi.com integration disabled - using Gemini's China market knowledge instead
-// import { queryWatchPrice } from './watch-price-helper';
+// Import ctime.com price helper for real price data
+import { queryCtimePrice } from './watch-price-helper';
 
 export const maxDuration = 60;
 
@@ -49,6 +49,7 @@ export async function POST(req: Request) {
     {
       "id": 1,
       "brand_model_series": "Brand (CN Name) Series Model (e.g. Rolex 劳力士 Submariner 116610LN)",
+      "serial": "手表型号/参考编号 (e.g. 116610LN, 5711/1A-010, 26665BA.OO.D412CR.01)",
       "price_estimate": "市场参考价（人民币）",
       "sharp_comment": "你的犀利点评（有趣、有梗、老钱风）",
       "heritage_story": "一段关于该品牌或表款的冷知识/历史",
@@ -70,7 +71,11 @@ export async function POST(req: Request) {
    - 示例：Rolex 劳力士 Submariner 潜航者 116610LN  
    - 示例：Cartier 卡地亚 Tank 坦克 Solo WSTA0028
    - 如无法识别系列，至少保证品牌双语：Brand 品牌 Unknown Series 未知系列
-2. **价格精准度（最高优先级要求）**：
+2. **型号/参考编号（serial字段，必填）**：
+   - 必须单独提供手表的型号/参考编号，用于数据库查询
+   - 示例：116610LN, 5711/1A-010, 26665BA.OO.D412CR.01, WSTA0028
+   - 如果无法识别，填写 "unknown"
+3. **价格精准度（最高优先级要求）**：
    - **基于中国市场2024-2025年实际成交价**：
      * 价格必须是人民币（¥），格式：¥50,000 - ¥80,000
      * 参考中国二级市场真实成交价（闲鱼、转转、watch.xbiao.com等）
@@ -83,9 +88,9 @@ export async function POST(req: Request) {
      * 卡地亚蓝气球中号：约 ¥25,000 - ¥35,000
    - 根据你的知识库和这些参考价，灵活估算相似款式的价格
    - 价格区间尽量合理，一般不超过30%
-3. **多表关联**：如果用户上传了多张图，请将它们视为一组进行识别，并分配递增的 ID (1, 2, 3...)。
-4. **对比分析**：在 comparison 对象中，必须指出哪一块"最贵"（most_expensive_id），哪一块"最超值/性价比最高"（best_value_id）。如果是单块表，这两个 ID 都是它自己。
-5. **识别标准（重中之重）**：
+4. **多表关联**：如果用户上传了多张图，请将它们视为一组进行识别，并分配递增的 ID (1, 2, 3...)。
+5. **对比分析**：在 comparison 对象中，必须指出哪一块"最贵"（most_expensive_id），哪一块"最超值/性价比最高"（best_value_id）。如果是单块表，这两个 ID 都是它自己。
+6. **识别标准（重中之重）**：
    ✅ 有表盘 → 是手表
    ✅ 有表带或表链 → 是手表  
    ✅ 戴在手腕上能看时间的 → 是手表
@@ -105,6 +110,7 @@ export async function POST(req: Request) {
     {
       "id": 1,
       "brand_model_series": "Rolex 劳力士 Submariner 潜航者 116610LN",
+      "serial": "116610LN",
       "price_estimate": "¥80,000 - ¥120,000",
       "sharp_comment": "劳力士的'入门款'——在表圈里这就是暗语，意思是'我虽然有钱但还没疯'。黑水鬼是唯一一块让你在夜店能装、在深海也能装的表，虽然99%的车主一辈子都不会潜水超过5米。经典到什么程度？你爷爷戴它时髦，你孙子戴它依然时髦，这波叫跨代收割。",
       "heritage_story": "1953年诞生，人类首款防水300米的潜水表。传说詹姆斯·邦德在007电影里戴的就是它的原型，从此'能潜水'成了男人荷尔蒙的标配。",
@@ -163,18 +169,34 @@ export async function POST(req: Request) {
                 throw new Error("Invalid structure: missing watches array");
             }
 
-            // CRITICAL FIX: Force all watches to have is_watch = true
-            // This prevents false negatives from AI misidentification
+            // Query ctime.com for real prices and update watch data
+            // If ctime.com has price (cnPrice > 0), use it; otherwise keep Gemini's estimate
+            parsedData.watches = await Promise.all(
+                parsedData.watches.map(async (watch: any) => {
+                    let finalPrice = watch.price_estimate;
 
-            // Note: thewatchapi.com disabled due to international pricing (not China market)
-            // Relying fully on Gemini's China market knowledge
-            parsedData.watches = parsedData.watches.map((watch: any) => ({
-                ...watch,
-                is_watch: true // Always treat uploaded images as watches
-            }));
+                    // Try to get real price from ctime.com using serial number
+                    if (watch.serial && watch.serial !== 'unknown') {
+                        const ctimeResult = await queryCtimePrice(watch.serial);
+                        if (ctimeResult.found && ctimeResult.price) {
+                            // Use ctime.com price (integer format)
+                            finalPrice = `¥${ctimeResult.price}`;
+                            console.log(`[Ctime] Found price for ${watch.serial}: ${finalPrice}`);
+                        } else {
+                            console.log(`[Ctime] No price found for ${watch.serial}, using Gemini estimate`);
+                        }
+                    }
+
+                    return {
+                        ...watch,
+                        is_watch: true, // Always treat uploaded images as watches
+                        price_estimate: finalPrice
+                    };
+                })
+            );
 
             const fixedContent = JSON.stringify(parsedData);
-            console.log("Fixed Response (China market prices):", fixedContent);
+            console.log("Fixed Response (with ctime.com prices):", fixedContent);
 
             return Response.json({ content: fixedContent });
         } catch (e) {
@@ -186,6 +208,7 @@ export async function POST(req: Request) {
                         {
                             id: 1,
                             brand_model_series: "识别失败",
+                            serial: "unknown",
                             price_estimate: "未知",
                             sharp_comment: "哎呀，这块表太独特了，我竟然一时没看出来（或者 AI 返回的数据格式有点小问题）。请再试一次？",
                             heritage_story: "",

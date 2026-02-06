@@ -1,4 +1,45 @@
-// Helper function to query thewatchapi.com for watch price data
+// Helper function to query ctime.com for watch price data
+export async function queryCtimePrice(serial: string): Promise<{
+    price?: number;
+    found: boolean;
+}> {
+    try {
+        if (!serial || serial.trim() === '') {
+            return { found: false };
+        }
+
+        const response = await fetch(
+            `https://www.ctime.com/index.php/watch/detailSerial?serial=${encodeURIComponent(serial.trim())}`,
+            {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            }
+        );
+
+        if (!response.ok) {
+            console.error(`Ctime API error: ${response.status}`);
+            return { found: false };
+        }
+
+        const data = await response.json();
+
+        // Check if we got valid result with price > 0
+        if (data && data.code === 1 && data.cnPrice && data.cnPrice > 0) {
+            return {
+                price: data.cnPrice,
+                found: true
+            };
+        }
+
+        return { found: false };
+    } catch (error) {
+        console.error("Error querying ctime API:", error);
+        return { found: false };
+    }
+}
+
+// Helper function to query thewatchapi.com for watch price data (deprecated)
 export async function queryWatchPrice(brandName: string, modelName: string): Promise<{
     price?: string;
     found: boolean;

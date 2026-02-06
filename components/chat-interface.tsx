@@ -10,6 +10,7 @@ import { WatchDetailsCard } from "./watch-card";
 interface WatchData {
     id: number;
     brand_model_series: string;
+    serial: string;
     price_estimate: string;
     sharp_comment: string;
     heritage_story: string;

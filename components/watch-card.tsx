@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 interface WatchData {
     brand_model_series: string;
+    serial?: string;
     price_estimate: string;
     sharp_comment: string;
     heritage_story: string;
@@ -54,6 +55,11 @@ export function WatchDetailsCard({ data, badges }: WatchDetailsCardProps) {
                     <h2 className="text-2xl md:text-3xl font-bold text-white leading-tight pr-8">
                         {data.brand_model_series}
                     </h2>
+                    {data.serial && data.serial !== 'unknown' && (
+                        <div className="text-zinc-500 text-xs font-mono tracking-wider">
+                            MODEL: {data.serial}
+                        </div>
+                    )}
                     <div className="inline-flex items-center gap-2 mt-2">
                         <span className="px-3 py-1 bg-brand-yellow text-black text-sm font-bold rounded-full shadow-lg shadow-brand-yellow/20">
                             {data.price_estimate}
