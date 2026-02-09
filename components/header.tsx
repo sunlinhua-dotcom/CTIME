@@ -11,7 +11,7 @@ export function Header() {
                     className="object-cover"
                 />
             </div>
-            <h1 className="sr-only">表态 (BiaoTai)</h1>
+            <h1 className="sr-only">表态 (CTIME)</h1>
         </header>
     );
 }

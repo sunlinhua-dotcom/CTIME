@@ -50,7 +50,7 @@ export function WatchDetailsCard({ data, badges }: WatchDetailsCardProps) {
                 )}
                 <div className="flex flex-col gap-2">
                     <span className="text-brand-yellow text-xs font-bold tracking-widest uppercase">
-                        BIAOTAI AUTHENTICATED
+                        CTIME AUTHENTICATED
                     </span>
                     <h2 className="text-2xl md:text-3xl font-bold text-white leading-tight pr-8">
                         {data.brand_model_series}
