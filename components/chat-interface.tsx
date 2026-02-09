@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from "react";
-import { Camera, RefreshCw, Loader2, Sparkles, TrendingUp, DollarSign } from "lucide-react";
+import { Camera, RefreshCw, Sparkles, TrendingUp, DollarSign } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { WatchDetailsCard } from "./watch-card";
@@ -36,20 +36,30 @@ export function ChatInterface() {
     const [resultData, setResultData] = useState<AIResponse | null>(null);
     const [timer, setTimer] = useState<number>(0.0);
     const [loadingText, setLoadingText] = useState("正在连线瑞士天文台...");
+    const [progress, setProgress] = useState<number>(0);
 
     // Refs
     const fileInputRef = useRef<HTMLInputElement>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const progressRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Loading Messages
-    const loadingMessages = [
-        "正在连线瑞士天文台...",
-        "正在翻阅佳士得拍卖记录...",
-        "正在对比百达翡丽档案...",
-        "正在检测机芯打磨工艺...",
-        "正在计算溢价指数...",
-        "正在分析表盘氧化程度...",
-        "正在识别贵金属印记..."
+    // Loading Phases with percentage ranges
+    const loadingPhases = [
+        { text: "正在压缩图像数据...", start: 0, end: 8 },
+        { text: "正在上传至AI服务器...", start: 8, end: 15 },
+        { text: "正在连线瑞士天文台...", start: 15, end: 22 },
+        { text: "正在初始化视觉识别引擎...", start: 22, end: 30 },
+        { text: "正在扫描表盘细节特征...", start: 30, end: 38 },
+        { text: "正在识别品牌标志与LOGO...", start: 38, end: 45 },
+        { text: "正在检测机芯打磨工艺...", start: 45, end: 52 },
+        { text: "正在对比百达翡丽档案...", start: 52, end: 58 },
+        { text: "正在翻阅佳士得拍卖记录...", start: 58, end: 65 },
+        { text: "正在查询ctime.com数据库...", start: 65, end: 72 },
+        { text: "正在计算中国市场溢价指数...", start: 72, end: 78 },
+        { text: "正在分析二级市场成交价...", start: 78, end: 84 },
+        { text: "正在生成毒舌鉴定报告...", start: 84, end: 90 },
+        { text: "正在润色犀利点评文案...", start: 90, end: 95 },
+        { text: "即将完成，最终校验中...", start: 95, end: 99 },
     ];
 
     // Helpers
@@ -62,6 +72,51 @@ export function ChatInterface() {
         });
     };
 
+    const startProgress = () => {
+        let currentProgress = 0;
+        let phaseIndex = 0;
+
+        setProgress(0);
+        setLoadingText(loadingPhases[0].text);
+
+        progressRef.current = setInterval(() => {
+            // Find current phase
+            while (phaseIndex < loadingPhases.length - 1 && currentProgress >= loadingPhases[phaseIndex].end) {
+                phaseIndex++;
+            }
+
+            const phase = loadingPhases[phaseIndex];
+            setLoadingText(phase.text);
+
+            // Calculate increment: slower as we approach 99%
+            let increment: number;
+            if (currentProgress < 30) {
+                increment = 0.3 + Math.random() * 0.5; // Fast: 0.3-0.8 per tick
+            } else if (currentProgress < 60) {
+                increment = 0.2 + Math.random() * 0.4; // Medium: 0.2-0.6
+            } else if (currentProgress < 85) {
+                increment = 0.1 + Math.random() * 0.3; // Slow: 0.1-0.4
+            } else if (currentProgress < 95) {
+                increment = 0.05 + Math.random() * 0.15; // Very slow: 0.05-0.2
+            } else {
+                increment = 0.02 + Math.random() * 0.08; // Crawl: 0.02-0.1
+            }
+
+            currentProgress = Math.min(currentProgress + increment, 99);
+            setProgress(currentProgress);
+        }, 100);
+    };
+
+    const stopProgress = () => {
+        if (progressRef.current) {
+            clearInterval(progressRef.current);
+            progressRef.current = null;
+        }
+        // Snap to 100%
+        setProgress(100);
+        setLoadingText("分析完成！");
+    };
+
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
@@ -69,23 +124,22 @@ export function ChatInterface() {
         // Reset state
         setResultData(null);
         setTimer(0.0);
-        setLoadingText(loadingMessages[0]);
+        setProgress(0);
 
         // Setup local preview for ALL selected files
         const urls = Array.from(files).map(file => URL.createObjectURL(file));
         setPreviewUrls(urls);
         setIsLoading(true);
 
-        // Start Timer & Text Rotation
+        // Start Timer
         const startTime = Date.now();
         timerRef.current = setInterval(() => {
             const elapsed = (Date.now() - startTime) / 1000;
             setTimer(elapsed);
-
-            // Rotate text every 2.0 seconds
-            const msgIndex = Math.floor(elapsed / 2.0) % loadingMessages.length;
-            setLoadingText(loadingMessages[msgIndex]);
         }, 100);
+
+        // Start Progress
+        startProgress();
 
         try {
             // 1. Prepare User Message with Base64 Images
@@ -139,6 +193,9 @@ export function ChatInterface() {
             console.error("Submit error:", err);
             alert(`识别失败: ${err.message || "请检查网络"}`);
         } finally {
+            stopProgress();
+            // Small delay to show 100% before hiding
+            await new Promise(r => setTimeout(r, 500));
             setIsLoading(false);
             if (timerRef.current) {
                 clearInterval(timerRef.current);
@@ -216,20 +273,7 @@ export function ChatInterface() {
                                 ))}
                             </div>
 
-                            {/* Loading Overlay */}
-                            {isLoading && (
-                                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black">
-                                    <Loader2 className="w-16 h-16 text-brand-yellow animate-spin mb-6" />
-                                    <div className="text-center space-y-3 px-6">
-                                        <h3 className="text-2xl font-bold text-brand-yellow animate-pulse drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">
-                                            {loadingText}
-                                        </h3>
-                                        <p className="text-zinc-300 font-mono text-lg font-semibold">
-                                            {timer.toFixed(1)}s
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
+
                         </div>
 
                         {/* RESULT SECTION */}
@@ -291,6 +335,73 @@ export function ChatInterface() {
                     </div>
                 )}
             </div>
+
+            {/* High-End Loading Overlay (Fixed Full Screen) */}
+            {isLoading && (
+                <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center overflow-hidden animate-in fade-in duration-300">
+                    {/* 1. Radar Scanner Effect */}
+                    <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#000_100%)]" />
+                        <div className="w-full h-1 bg-brand-yellow/50 absolute top-0 animate-[scan_3s_ease-in-out_infinite] shadow-[0_0_20px_rgba(251,191,36,0.5)]" />
+                    </div>
+
+                    {/* 2. Central HUD */}
+                    <div className="relative z-10 flex flex-col items-center scale-110">
+                        {/* Outer Ring */}
+                        <div className="relative w-64 h-64 flex items-center justify-center mb-10">
+                            {/* Spinning Rings */}
+                            <div className="absolute inset-0 border-2 border-brand-yellow/20 rounded-full animate-[spin_10s_linear_infinite]" />
+                            <div className="absolute inset-4 border border-brand-yellow/10 rounded-full border-t-transparent animate-[spin_4s_linear_infinite_reverse]" />
+                            <div className="absolute inset-0 rounded-full border border-brand-yellow/5 animate-pulse" />
+
+                            {/* Percentage */}
+                            <div className="flex flex-col items-center justify-center z-20">
+                                <span className="text-7xl font-black text-brand-yellow tabular-nums tracking-tighter drop-shadow-[0_0_20px_rgba(251,191,36,0.6)]">
+                                    {Math.floor(progress)}
+                                    <span className="text-3xl align-top ml-1">%</span>
+                                </span>
+                                <span className="text-xs text-brand-yellow/60 uppercase tracking-[0.3em] animate-pulse mt-2 font-mono">
+                                    System Analysis
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Progress Bar (Technical Style) */}
+                        <div className="w-80 h-1.5 bg-zinc-900 rounded-none mb-6 relative overflow-hidden border-x border-brand-yellow/20">
+                            <div
+                                className="absolute top-0 left-0 h-full bg-brand-yellow shadow-[0_0_15px_rgba(251,191,36,0.8)]"
+                                style={{ width: `${progress}%` }}
+                            />
+                        </div>
+
+                        {/* Phase Text & Data Stream */}
+                        <div className="text-center space-y-2">
+                            <h3 className="text-lg font-bold text-brand-yellow tracking-widest uppercase drop-shadow-md">
+                                {loadingText}
+                            </h3>
+                            <div className="flex items-center justify-center gap-4 text-xs font-mono text-zinc-500">
+                                <span className="flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 bg-brand-yellow rounded-full animate-ping" />
+                                    LIVE
+                                </span>
+                                <span>|</span>
+                                <span>T: {timer.toFixed(1)}s</span>
+                                <span>|</span>
+                                <span className="text-brand-yellow/80">CPU: {Math.floor(Math.random() * 30 + 40)}%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 3. Decorative HUD Corners (Expanded) */}
+                    <div className="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-brand-yellow/40" />
+                    <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-brand-yellow/40" />
+                    <div className="absolute bottom-8 left-8 w-8 h-8 border-b-2 border-l-2 border-brand-yellow/40" />
+                    <div className="absolute bottom-8 right-8 w-8 h-8 border-b-2 border-r-2 border-brand-yellow/40" />
+
+                    {/* Grid Background */}
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,183,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,183,0,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none z-0" />
+                </div>
+            )}
 
             <input
                 type="file"
