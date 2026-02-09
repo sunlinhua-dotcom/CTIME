@@ -62,13 +62,37 @@ export function ChatInterface() {
         { text: "即将完成，最终校验中...", start: 95, end: 99 },
     ];
 
-    // Helpers
-    const fileToBase64 = (file: File): Promise<string> => {
+    // Helpers: Compress image using Canvas before converting to base64
+    const compressImage = (file: File, maxSize = 1024, quality = 0.7): Promise<string> => {
         return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
+            const img = document.createElement('img');
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                // Calculate new dimensions (maintain aspect ratio)
+                let { width, height } = img;
+                if (width > maxSize || height > maxSize) {
+                    if (width > height) {
+                        height = Math.round((height * maxSize) / width);
+                        width = maxSize;
+                    } else {
+                        width = Math.round((width * maxSize) / height);
+                        height = maxSize;
+                    }
+                }
+                // Draw to canvas and export as compressed JPEG
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) { reject(new Error('Canvas not supported')); return; }
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                console.log(`[Compress] ${file.name}: ${(file.size / 1024).toFixed(0)}KB -> ~${(compressedBase64.length * 0.75 / 1024).toFixed(0)}KB (${width}x${height})`);
+                resolve(compressedBase64);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+            img.src = url;
         });
     };
 
@@ -147,7 +171,7 @@ export function ChatInterface() {
                 Array.from(files).map(async (file) => ({
                     name: file.name,
                     contentType: file.type,
-                    url: await fileToBase64(file)
+                    url: await compressImage(file)
                 }))
             );
 
